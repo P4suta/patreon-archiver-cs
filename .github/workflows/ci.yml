@@ -10,12 +10,13 @@ permissions:
   contents: read
 
 jobs:
-  # Required check. The Core library and its tests target plain net10.0, so they
-  # restore/build/test on Linux without the Windows App SDK. The App project
-  # (net10.0-windows / WinUI 3) is intentionally NOT part of this job.
+  # Required check. Runs the Core unit tests (net10.0, no Windows App SDK). It
+  # runs on Windows because a few tests assert Windows path semantics (drive
+  # roots, '\' separators); the suite is tiny (~0.5s) so the runner cost is
+  # negligible. The App project (net10.0-windows / WinUI 3) is NOT part of this.
   test:
     name: test
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
