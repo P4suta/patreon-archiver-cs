@@ -12,6 +12,16 @@
 - 状態は **SQLite**、差分同期・coverage アンカー・ギャップ検出を原典から忠実移植
 - **Fluent Design 全乗っかり**（Mica / dark-first / NavigationView / SettingsCard）
 
+## ダウンロード（ビルド不要）
+
+クローンしてビルドする必要はありません。[**Releases**](https://github.com/P4suta/patreon-archiver-cs/releases) から `PatreonArchiver-win-x64.zip`（Windows on ARM なら `-win-arm64`）を取得 → 展開 → `PatreonArchiver.App.exe` を直接起動するだけ。
+
+- **self-contained**: .NET / Windows App SDK の別途インストール不要
+- **yt-dlp / ffmpeg 同梱**
+- インストール不要・Developer Mode 不要のポータブル配布
+
+> ビルド済みバイナリは tag（`v*`）を push すると GitHub Actions（`release.yml`）が自動生成し、Release に添付します。自分でビルドしたい場合は下記「ビルド & 実行」を参照。
+
 ## アーキテクチャ
 
 ```

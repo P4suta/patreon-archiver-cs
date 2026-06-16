@@ -1,0 +1,77 @@
+name: Release
+
+# Build the portable, self-contained app and attach it to a GitHub Release so
+# users can download a ready-to-run build instead of cloning + building locally.
+#   - push a tag like `v0.1.0`  -> builds + creates the Release with the zips
+#   - run manually (workflow_dispatch) -> builds + uploads zips as run artifacts
+#     (no Release), handy for validating the build.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish (${{ matrix.rid }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [win-x64, win-arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Fetch bundled download engine (yt-dlp / ffmpeg / ffprobe)
+        run: pwsh ./src/PatreonArchiver.App/tools/fetch-tools.ps1
+
+      - name: Restore workloads
+        run: dotnet workload restore src/PatreonArchiver.App/PatreonArchiver.App.csproj
+
+      - name: Publish (self-contained, unpackaged, portable)
+        run: dotnet publish src/PatreonArchiver.App/PatreonArchiver.App.csproj -c Release -r ${{ matrix.rid }} -o publish/${{ matrix.rid }}
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath PatreonArchiver-${{ matrix.rid }}.zip -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PatreonArchiver-${{ matrix.rid }}
+          path: PatreonArchiver-${{ matrix.rid }}.zip
+          if-no-files-found: error
+
+  release:
+    name: release
+    needs: publish
+    # Only cut a Release for tag pushes; tolerate a single-arch publish failure
+    # so the Release still goes out with whatever arches built.
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create / update the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" dist/*.zip \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
