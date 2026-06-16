@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="PatreonArchiver.App.Views.DownloadsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="Downloads" />
+
+        <Border
+            Grid.Row="1"
+            Padding="16"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource OverlayCornerRadius}">
+            <StackPanel Spacing="12">
+                <TextBlock
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="{x:Bind ViewModel.Coordinator.StatusLine, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+                <ProgressBar Maximum="100" Value="{x:Bind ViewModel.Coordinator.Progress, Mode=OneWay}" />
+                <Button
+                    AutomationProperties.AutomationId="DownloadsCancel"
+                    Command="{x:Bind ViewModel.CancelCommand}"
+                    Content="キャンセル"
+                    IsEnabled="{x:Bind ViewModel.Coordinator.IsRunning, Mode=OneWay}" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="2" Spacing="8">
+            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="履歴" />
+            <ListView
+                AutomationProperties.AutomationId="DownloadsLog"
+                ItemsSource="{x:Bind ViewModel.Coordinator.Log, Mode=OneWay}"
+                SelectionMode="None" />
+        </StackPanel>
+    </Grid>
+</Page>

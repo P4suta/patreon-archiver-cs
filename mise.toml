@@ -1,0 +1,7 @@
+# patreon-archiver-cs toolchain — managed by mise
+# (consistent with this machine's chezmoi + mise dotfiles setup).
+# dotnet 10.0.300 already exists in the global mise store; `mise install` is a no-op there.
+# Run dotnet via `mise exec -- dotnet ...` (or an activated shell) so the pinned SDK is used,
+# not the system runtime-only install at C:\Program Files\dotnet.
+[tools]
+dotnet = "10.0.300"

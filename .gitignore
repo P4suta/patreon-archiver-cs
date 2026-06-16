@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+[Pp]ublish/
+*.user
+
+# Bundled binaries — fetched via src/PatreonArchiver.App/tools/fetch-tools.ps1, not committed
+src/PatreonArchiver.App/tools/*.exe
+
+# Local runtime data
+*.db
+*.db-wal
+*.db-shm
+
+# NuGet
+*.nupkg
+.packages/

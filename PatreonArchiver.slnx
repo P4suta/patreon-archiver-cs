@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PatreonArchiver.App/PatreonArchiver.App.csproj" />
+    <Project Path="src/PatreonArchiver.Core/PatreonArchiver.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PatreonArchiver.Core.Tests/PatreonArchiver.Core.Tests.csproj" />
+  </Folder>
+</Solution>

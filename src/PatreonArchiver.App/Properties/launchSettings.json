@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PatreonArchiver.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "PatreonArchiver.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

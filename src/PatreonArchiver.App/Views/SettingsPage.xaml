@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="PatreonArchiver.App.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tk="using:CommunityToolkit.WinUI.Controls"
+    mc:Ignorable="d">
+
+    <ScrollViewer>
+        <StackPanel
+            MaxWidth="960"
+            Padding="24"
+            Spacing="6">
+            <TextBlock
+                Margin="0,0,0,12"
+                Style="{StaticResource TitleTextBlockStyle}"
+                Text="Settings" />
+
+            <TextBlock
+                Margin="0,8,0,4"
+                Style="{StaticResource BodyStrongTextBlockStyle}"
+                Text="ダウンロード" />
+            <tk:SettingsCard Description="同時フラグメント 8・待機なし（高速だがサーバ負荷大）。OFF は polite（4・待機あり）。" Header="高速プリセット">
+                <ToggleSwitch AutomationProperties.AutomationId="SettingsFastPreset" IsOn="{x:Bind ViewModel.UseFastPreset, Mode=TwoWay}" />
+            </tk:SettingsCard>
+
+            <TextBlock
+                Margin="0,12,0,4"
+                Style="{StaticResource BodyStrongTextBlockStyle}"
+                Text="外観" />
+            <tk:SettingsCard Description="アプリの配色" Header="テーマ">
+                <ComboBox
+                    MinWidth="160"
+                    AutomationProperties.AutomationId="SettingsTheme"
+                    SelectedIndex="{x:Bind ViewModel.Settings.ThemeIndex, Mode=TwoWay}">
+                    <ComboBoxItem Content="システム" />
+                    <ComboBoxItem Content="ライト" />
+                    <ComboBoxItem Content="ダーク" />
+                </ComboBox>
+            </tk:SettingsCard>
+
+            <TextBlock
+                Margin="0,12,0,4"
+                Style="{StaticResource BodyStrongTextBlockStyle}"
+                Text="エンジン" />
+            <tk:SettingsExpander Description="アプリに同梱された外部ツール" Header="yt-dlp / ffmpeg">
+                <Button
+                    AutomationProperties.AutomationId="SettingsProbeTools"
+                    Command="{x:Bind ViewModel.ProbeToolsCommand}"
+                    Content="バージョン確認" />
+                <tk:SettingsExpander.Items>
+                    <tk:SettingsCard Header="yt-dlp">
+                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.YtDlpVersion, Mode=OneWay}" />
+                    </tk:SettingsCard>
+                    <tk:SettingsCard Header="ffmpeg">
+                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.FfmpegVersion, Mode=OneWay}" />
+                    </tk:SettingsCard>
+                </tk:SettingsExpander.Items>
+            </tk:SettingsExpander>
+
+            <TextBlock
+                Margin="0,12,0,4"
+                Style="{StaticResource BodyStrongTextBlockStyle}"
+                Text="ストレージ" />
+            <tk:SettingsCard Description="空きがこれを下回るとダウンロードを停止します（システム保護）。" Header="最低空き容量 (GB)">
+                <NumberBox
+                    MinWidth="140"
+                    AutomationProperties.AutomationId="SettingsMinFreeSpace"
+                    LargeChange="5"
+                    Minimum="0"
+                    SmallChange="1"
+                    SpinButtonPlacementMode="Inline"
+                    Value="{x:Bind ViewModel.MinimumFreeSpaceGb, Mode=TwoWay}" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Description="{x:Bind ViewModel.OutputRoot}" Header="ライブラリ">
+                <Button
+                    AutomationProperties.AutomationId="SettingsOpenLibrary"
+                    Command="{x:Bind ViewModel.OpenOutputFolderCommand}"
+                    Content="フォルダを開く" />
+            </tk:SettingsCard>
+            <tk:SettingsCard Description="{x:Bind ViewModel.DatabasePath}" Header="データベース" />
+            <tk:SettingsCard Description="{x:Bind ViewModel.CookiesPath}" Header="Cookie" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>
