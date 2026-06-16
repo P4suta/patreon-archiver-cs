@@ -7,5 +7,11 @@
     <Deterministic>true</Deterministic>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!--
+      Allow `dotnet restore` of the Windows-targeted App on non-Windows hosts
+      (Linux CI, GitHub's NuGet dependency-graph submission). Restore-only; a
+      full WinUI build still requires Windows + the Windows App SDK workload.
+    -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 </Project>
