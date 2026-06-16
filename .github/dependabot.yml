@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # NuGet — Central Package Management (Directory.Packages.props) is supported.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      nuget-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Keep the GitHub Actions used by the workflows pinned and current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
