@@ -24,7 +24,7 @@ jobs:
         rid: [win-x64, win-arm64]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -45,7 +45,7 @@ jobs:
         run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath PatreonArchiver-${{ matrix.rid }}.zip -Force
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PatreonArchiver-${{ matrix.rid }}
           path: PatreonArchiver-${{ matrix.rid }}.zip
@@ -62,7 +62,7 @@ jobs:
       contents: write
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
