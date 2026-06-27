@@ -15,7 +15,8 @@
   <ItemGroup>
     <PackageReference Include="AngleSharp" />
     <PackageReference Include="MimeKit" />
-    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
+    <PackageReference Include="SQLitePCLRaw.provider.winsqlite3" />
     <PackageReference Include="Dapper" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Http" />

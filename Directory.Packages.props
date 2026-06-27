@@ -10,7 +10,17 @@
   <ItemGroup Label="Core — parsing, persistence, HTTP">
     <PackageVersion Include="AngleSharp" Version="1.5.1" />
     <PackageVersion Include="MimeKit" Version="4.17.0" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <!--
+      Microsoft.Data.Sqlite.Core (not the meta-package) so we pick the SQLite
+      provider ourselves: the OS-provided winsqlite3.dll instead of the bundled
+      SQLitePCLRaw.lib.e_sqlite3, which carries CVE-2025-6965 (no patched build
+      released upstream). winsqlite3 is serviced by Windows Update; the provider
+      package is managed-only (no native SQLite), so it isn't flagged. The SQL we
+      run is rewritten to stay within winsqlite3's older SQLite (see
+      SqliteArchiveRepository).
+    -->
+    <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="10.0.9" />
+    <PackageVersion Include="SQLitePCLRaw.provider.winsqlite3" Version="2.1.11" />
     <PackageVersion Include="Dapper" Version="2.1.79" />
   </ItemGroup>
 

@@ -37,18 +37,32 @@ internal sealed class SqliteArchiveRepository : IArchiveRepository, IDisposable
         }
     }
 
+    // Portable upsert (no ON CONFLICT / RETURNING — those need SQLite 3.24/3.35, newer than
+    // winsqlite3 on older Windows). INSERT OR IGNORE + a COALESCE UPDATE is equivalent here, and
+    // a trailing SELECT stands in for RETURNING. The writer gate + transaction keep it atomic.
     public Task<Creator> GetOrCreateCreatorAsync(
         string handle, string? streamHost, string? patreonUrl, CancellationToken ct = default) =>
-        WriteAsync(c => c.QuerySingle<CreatorRow>(
-            """
-            INSERT INTO creators(handle, display_name, stream_host, patreon_url)
-            VALUES (@handle, NULL, @streamHost, @patreonUrl)
-            ON CONFLICT(handle) DO UPDATE SET
-                stream_host = COALESCE(excluded.stream_host, creators.stream_host),
-                patreon_url = COALESCE(excluded.patreon_url, creators.patreon_url)
-            RETURNING id, handle, display_name, stream_host, patreon_url;
-            """,
-            new { handle, streamHost, patreonUrl }).ToDomain(), ct);
+        WriteAsync(c =>
+        {
+            using var tx = c.BeginTransaction();
+            var args = new { handle, streamHost, patreonUrl };
+            c.Execute(
+                "INSERT OR IGNORE INTO creators(handle, display_name, stream_host, patreon_url) VALUES (@handle, NULL, @streamHost, @patreonUrl);",
+                args, tx);
+            c.Execute(
+                """
+                UPDATE creators SET
+                    stream_host = COALESCE(@streamHost, stream_host),
+                    patreon_url = COALESCE(@patreonUrl, patreon_url)
+                WHERE handle = @handle;
+                """,
+                args, tx);
+            var row = c.QuerySingle<CreatorRow>(
+                "SELECT id, handle, display_name, stream_host, patreon_url FROM creators WHERE handle = @handle;",
+                args, tx);
+            tx.Commit();
+            return row.ToDomain();
+        }, ct);
 
     public Task<Creator?> FindCreatorAsync(string handle, CancellationToken ct = default) =>
         ReadAsync(c => c.QuerySingleOrDefault<CreatorRow>(
@@ -78,37 +92,45 @@ internal sealed class SqliteArchiveRepository : IArchiveRepository, IDisposable
             using var tx = c.BeginTransaction();
             foreach (var post in list)
             {
+                // Portable upsert: INSERT OR IGNORE seeds a new row (status/file_path/dates and
+                // the rest), then UPDATE refreshes only the mutable fields on an existing row —
+                // exactly the columns the original ON CONFLICT DO UPDATE touched.
+                var args = new
+                {
+                    creatorId,
+                    token = post.Token,
+                    streamUrl = post.Stream.Url.ToString(),
+                    postDate = Conv.Iso(post.Date),
+                    slug = post.Stream.Slug,
+                    title = post.Title,
+                    resolvedIframe = post.ResolvedIframe?.ToString(),
+                    patreonPostUrl = post.PatreonPostUrl,
+                    videoId = post.VideoId,
+                    status = (int)post.Status,
+                    filePath = post.FilePath,
+                    discoveredAt = Conv.Iso(post.DiscoveredAt == default ? _clock.UtcNow : post.DiscoveredAt),
+                    publishedAt = post.PublishedAt is { } p ? Conv.Iso(p) : null,
+                };
                 c.Execute(
                     """
-                    INSERT INTO posts(creator_id, token, stream_url, post_date, slug, title,
+                    INSERT OR IGNORE INTO posts(creator_id, token, stream_url, post_date, slug, title,
                                       resolved_iframe, patreon_post_url, video_id, status, file_path,
                                       discovered_at, published_at)
                     VALUES (@creatorId, @token, @streamUrl, @postDate, @slug, @title,
                             @resolvedIframe, @patreonPostUrl, @videoId, @status, @filePath,
-                            @discoveredAt, @publishedAt)
-                    ON CONFLICT(creator_id, token) DO UPDATE SET
-                        stream_url       = excluded.stream_url,
-                        title            = COALESCE(excluded.title, posts.title),
-                        resolved_iframe  = COALESCE(excluded.resolved_iframe, posts.resolved_iframe),
-                        patreon_post_url = COALESCE(excluded.patreon_post_url, posts.patreon_post_url);
+                            @discoveredAt, @publishedAt);
                     """,
-                    new
-                    {
-                        creatorId,
-                        token = post.Token,
-                        streamUrl = post.Stream.Url.ToString(),
-                        postDate = Conv.Iso(post.Date),
-                        slug = post.Stream.Slug,
-                        title = post.Title,
-                        resolvedIframe = post.ResolvedIframe?.ToString(),
-                        patreonPostUrl = post.PatreonPostUrl,
-                        videoId = post.VideoId,
-                        status = (int)post.Status,
-                        filePath = post.FilePath,
-                        discoveredAt = Conv.Iso(post.DiscoveredAt == default ? _clock.UtcNow : post.DiscoveredAt),
-                        publishedAt = post.PublishedAt is { } p ? Conv.Iso(p) : null,
-                    },
-                    tx);
+                    args, tx);
+                c.Execute(
+                    """
+                    UPDATE posts SET
+                        stream_url       = @streamUrl,
+                        title            = COALESCE(@title, title),
+                        resolved_iframe  = COALESCE(@resolvedIframe, resolved_iframe),
+                        patreon_post_url = COALESCE(@patreonPostUrl, patreon_post_url)
+                    WHERE creator_id = @creatorId AND token = @token;
+                    """,
+                    args, tx);
             }
 
             var tokens = list.Select(p => p.Token).ToArray();
@@ -159,29 +181,49 @@ internal sealed class SqliteArchiveRepository : IArchiveRepository, IDisposable
             ?? CoverageAnchor.None(creatorId, _clock.UtcNow), ct);
 
     public Task AdvanceAnchorAsync(long creatorId, DateOnly anchor, CancellationToken ct = default) =>
-        WriteAsync(c => c.Execute(
-            """
-            INSERT INTO coverage_anchors(creator_id, anchor_date, pending_gap_from, pending_gap_to, updated_at)
-            VALUES (@creatorId, @anchor, NULL, NULL, @now)
-            ON CONFLICT(creator_id) DO UPDATE SET
-                anchor_date      = excluded.anchor_date,
-                pending_gap_from = NULL,
-                pending_gap_to   = NULL,
-                updated_at       = excluded.updated_at;
-            """,
-            new { creatorId, anchor = Conv.Iso(anchor), now = Conv.Iso(_clock.UtcNow) }), ct);
+        WriteAsync(c =>
+        {
+            using var tx = c.BeginTransaction();
+            var args = new { creatorId, anchor = Conv.Iso(anchor), now = Conv.Iso(_clock.UtcNow) };
+            c.Execute(
+                "INSERT OR IGNORE INTO coverage_anchors(creator_id, anchor_date, pending_gap_from, pending_gap_to, updated_at) VALUES (@creatorId, @anchor, NULL, NULL, @now);",
+                args, tx);
+            var n = c.Execute(
+                """
+                UPDATE coverage_anchors SET
+                    anchor_date      = @anchor,
+                    pending_gap_from = NULL,
+                    pending_gap_to   = NULL,
+                    updated_at       = @now
+                WHERE creator_id = @creatorId;
+                """,
+                args, tx);
+            tx.Commit();
+            return n;
+        }, ct);
 
     public Task SetGapAsync(long creatorId, DateOnly gapFrom, DateOnly gapTo, CancellationToken ct = default) =>
-        WriteAsync(c => c.Execute(
-            """
-            INSERT INTO coverage_anchors(creator_id, anchor_date, pending_gap_from, pending_gap_to, updated_at)
-            VALUES (@creatorId, NULL, @gapFrom, @gapTo, @now)
-            ON CONFLICT(creator_id) DO UPDATE SET
-                pending_gap_from = MIN(COALESCE(coverage_anchors.pending_gap_from, @gapFrom), @gapFrom),
-                pending_gap_to   = @gapTo,
-                updated_at       = @now;
-            """,
-            new { creatorId, gapFrom = Conv.Iso(gapFrom), gapTo = Conv.Iso(gapTo), now = Conv.Iso(_clock.UtcNow) }), ct);
+        WriteAsync(c =>
+        {
+            using var tx = c.BeginTransaction();
+            var args = new { creatorId, gapFrom = Conv.Iso(gapFrom), gapTo = Conv.Iso(gapTo), now = Conv.Iso(_clock.UtcNow) };
+            c.Execute(
+                "INSERT OR IGNORE INTO coverage_anchors(creator_id, anchor_date, pending_gap_from, pending_gap_to, updated_at) VALUES (@creatorId, NULL, @gapFrom, @gapTo, @now);",
+                args, tx);
+            // Existing row: shrink the gap's lower bound (scalar MIN, not the aggregate);
+            // freshly-inserted row recomputes to @gapFrom — equivalent to the old upsert.
+            var n = c.Execute(
+                """
+                UPDATE coverage_anchors SET
+                    pending_gap_from = MIN(COALESCE(pending_gap_from, @gapFrom), @gapFrom),
+                    pending_gap_to   = @gapTo,
+                    updated_at       = @now
+                WHERE creator_id = @creatorId;
+                """,
+                args, tx);
+            tx.Commit();
+            return n;
+        }, ct);
 
     public Task<bool> IsArchivedAsync(long creatorId, string extractor, string videoId, CancellationToken ct = default) =>
         ReadAsync(c => c.ExecuteScalar<long>(
