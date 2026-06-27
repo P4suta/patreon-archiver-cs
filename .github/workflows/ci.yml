@@ -32,9 +32,13 @@ jobs:
       - name: Test
         run: dotnet test tests/PatreonArchiver.Core.Tests/PatreonArchiver.Core.Tests.csproj -c Release --no-restore
 
-  # Best-effort (non-blocking): the WinUI 3 app only builds on Windows and needs
-  # the Windows App SDK workload plus the bundled download engine. Network fetch
-  # from gyan.dev can be flaky, so this job must never block a merge.
+  # Best-effort (non-blocking): assemble the full distributable bundle via
+  # eng/pack.ps1 and upload it as a run artifact, so every push / PR yields a
+  # ready-to-run download straight from the Actions run page (no tag or manual
+  # dispatch needed). This also upgrades the smoke from "does it build" to "does
+  # it assemble into a runnable bundle" (pack self-verifies). The WinUI 3 app
+  # only builds on Windows and needs the Windows App SDK workload plus the
+  # bundled engine; the gyan.dev fetch can be flaky, so this never blocks a merge.
   build-app:
     name: build-app (windows, best-effort)
     runs-on: windows-latest
@@ -54,5 +58,15 @@ jobs:
       - name: Restore workloads
         run: dotnet workload restore src/PatreonArchiver.App/PatreonArchiver.App.csproj
 
-      - name: Build app
-        run: dotnet build src/PatreonArchiver.App/PatreonArchiver.App.csproj -c Release
+      - name: Assemble bundle (publish + launcher + package)
+        run: pwsh ./eng/pack.ps1 -Rid win-x64 -Version v0.0.0-ci.${{ github.run_number }}
+
+      - name: Upload bundle artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: PatreonArchiver-win-x64
+          path: |
+            dist/PatreonArchiver-*-win-x64.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: warn
