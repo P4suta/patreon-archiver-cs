@@ -1,8 +1,22 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 using PatreonArchiver.Core.Configuration;
 
 namespace PatreonArchiver.Core.Persistence;
+
+/// <summary>
+/// Points Microsoft.Data.Sqlite.Core at the OS-provided <c>winsqlite3.dll</c> instead of the
+/// bundled <c>e_sqlite3</c> native lib (which carries CVE-2025-6965 with no patched upstream
+/// build). Runs once on assembly load — before any <see cref="SqliteConnection"/> is created —
+/// so the App and the test host both use winsqlite3 without any per-entry-point wiring.
+/// </summary>
+internal static class SqliteProvider
+{
+    [ModuleInitializer]
+    internal static void Init() =>
+        SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_winsqlite3());
+}
 
 /// <summary>
 /// Creates opened, PRAGMA-configured SQLite connections. WAL keeps readers concurrent with the

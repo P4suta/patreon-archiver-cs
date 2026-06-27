@@ -8,6 +8,16 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <!--
+      Vulnerability gate: promote NuGet audit advisories (NU1901-NU1904) to build
+      errors so a known-vulnerable dependency fails restore/build/CI instead of
+      scrolling past as a warning. NuGetAudit (on by default, mode=all) covers the
+      transitive graph. The escape hatch for an unfixable advisory is a justified
+      <NuGetAuditSuppress> entry — not disabling this gate. (CVE-2025-6965 was
+      removed at the source by switching SQLite to winsqlite3, so no suppression
+      is needed today.)
+    -->
+    <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
+    <!--
       Allow `dotnet restore` of the Windows-targeted App on non-Windows hosts
       (Linux CI, GitHub's NuGet dependency-graph submission). Restore-only; a
       full WinUI build still requires Windows + the Windows App SDK workload.
