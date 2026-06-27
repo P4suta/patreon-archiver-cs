@@ -5,6 +5,10 @@ name: Release
 #   - push a tag like `v0.1.0`  -> builds + creates the Release with the zips
 #   - run manually (workflow_dispatch) -> builds + uploads zips as run artifacts
 #     (no Release), handy for validating the build.
+#
+# Each arch is assembled by eng/pack.ps1 into the "open the folder, one obvious
+# thing to run" layout (root = PatreonArchiver.exe + README.txt + app\) and
+# packaged as PatreonArchiver-<version>-<rid>.zip with a SHA256SUMS.txt entry.
 
 on:
   push:
@@ -37,18 +41,19 @@ jobs:
       - name: Restore workloads
         run: dotnet workload restore src/PatreonArchiver.App/PatreonArchiver.App.csproj
 
-      - name: Publish (self-contained, unpackaged, portable)
-        run: dotnet publish src/PatreonArchiver.App/PatreonArchiver.App.csproj -c Release -r ${{ matrix.rid }} -o publish/${{ matrix.rid }}
-
-      - name: Zip
-        shell: pwsh
-        run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath PatreonArchiver-${{ matrix.rid }}.zip -Force
+      # Publish the app into app/, build the NativeAOT launcher at the root, prune
+      # locales, write README, self-verify, then zip + checksum. On a tag push the
+      # version is the tag; a manual run gets a v0.0.0-dev placeholder.
+      - name: Assemble bundle (publish + launcher + package)
+        run: pwsh ./eng/pack.ps1 -Rid ${{ matrix.rid }} -Version ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v0.0.0-dev' }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
           name: PatreonArchiver-${{ matrix.rid }}
-          path: PatreonArchiver-${{ matrix.rid }}.zip
+          path: |
+            dist/PatreonArchiver-*-${{ matrix.rid }}.zip
+            dist/SHA256SUMS.txt
           if-no-files-found: error
 
   release:
@@ -61,18 +66,22 @@ jobs:
     permissions:
       contents: write
     steps:
+      # No merge-multiple: each arch lands in its own dist/<artifact-name>/ dir so
+      # the per-arch SHA256SUMS.txt files (same name) don't collide.
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
           path: dist
-          merge-multiple: true
+
+      - name: Combine checksums
+        run: cat dist/*/SHA256SUMS.txt | sort > dist/SHA256SUMS.txt
 
       - name: Create / update the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" dist/*.zip \
+          gh release create "$TAG" dist/*/*.zip dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TAG" \
             --generate-notes

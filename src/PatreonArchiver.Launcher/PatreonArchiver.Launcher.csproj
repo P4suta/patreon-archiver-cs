@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tiny NativeAOT launcher shipped at the distributable bundle root as
+    PatreonArchiver.exe — the single file a user double-clicks. It spawns the
+    real app at app\PatreonArchiver.App.exe (the whole runtime lives under app\)
+    so the extracted folder has one obvious thing to run. See eng/pack.ps1.
+  -->
+  <PropertyGroup>
+    <!-- GUI subsystem: no console window flashes when double-clicked. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Platforms>x64;ARM64</Platforms>
+    <!-- Ship as PatreonArchiver.exe (distinct from the app's PatreonArchiver.App.exe). -->
+    <AssemblyName>PatreonArchiver</AssemblyName>
+    <RootNamespace>PatreonArchiver.Launcher</RootNamespace>
+
+    <!-- Single ~1-2 MB native exe with no runtime dependency. -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Required by the [LibraryImport] source generator (UTF-16 string marshalling). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+</Project>
