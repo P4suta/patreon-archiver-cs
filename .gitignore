@@ -2,6 +2,7 @@
 bin/
 obj/
 [Pp]ublish/
+dist/
 *.user
 
 # Bundled binaries — fetched via src/PatreonArchiver.App/tools/fetch-tools.ps1, not committed
